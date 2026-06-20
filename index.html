@@ -44,6 +44,32 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-
 .main{flex:1;padding:24px;max-width:1280px;margin:0 auto;width:100%}
 .page{display:none}.page.active{display:block}
 
+/* ── HAMBURGER + MOBILE NAV PANEL ── */
+.hamburger-btn{display:none;flex-direction:column;justify-content:center;gap:4px;width:32px;height:32px;background:none;border:none;cursor:pointer;flex-shrink:0;padding:0}
+.hamburger-btn span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;margin:0 auto;transition:.2s}
+.hamburger-btn.open span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.hamburger-btn.open span:nth-child(2){opacity:0}
+.hamburger-btn.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+
+.mobile-nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150}
+.mobile-nav-backdrop.open{display:block}
+
+.mobile-nav-panel{
+  display:none;position:fixed;top:52px;left:0;right:0;background:var(--navy);
+  z-index:160;flex-direction:column;padding:8px;max-height:calc(100vh - 52px);overflow-y:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.3);
+  transform:translateY(-8px);opacity:0;transition:transform .18s ease,opacity .18s ease;
+}
+.mobile-nav-panel.open{display:flex;transform:translateY(0);opacity:1}
+.mobile-nav-btn{
+  background:none;border:none;color:rgba(255,255,255,.8);font-size:15px;font-weight:500;
+  text-align:left;padding:13px 14px;border-radius:8px;cursor:pointer;width:100%;
+}
+.mobile-nav-btn:active,.mobile-nav-btn.active{background:rgba(255,255,255,.1);color:#fff}
+.mobile-nav-divider{height:1px;background:rgba(255,255,255,.12);margin:8px 4px}
+.mobile-nav-user{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;color:rgba(255,255,255,.6);font-size:13px;gap:10px}
+.mobile-nav-user span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* ── COMMON ── */
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .page-title{font-size:18px;font-weight:600}
@@ -175,17 +201,23 @@ td{padding:10px 12px;vertical-align:middle}.td-primary{font-weight:500}
   .est-header-row,.est-row{grid-template-columns:24px 1fr 100px 70px}
   .est-header-row>*:nth-child(5),.est-header-row>*:nth-child(6),
   .est-row>*:nth-child(5),.est-row>*:nth-child(6){display:none}
-  .nav-links .nav-btn{padding:6px 7px;font-size:12px}
+}
+
+/* Below this width, the full nav + username no longer fit comfortably —
+   swap to a hamburger menu instead of letting things get clipped. */
+@media(max-width:720px){
+  .topbar{padding:0 12px;gap:8px}
+  .nav-links{display:none}
+  .user-pill{display:none}
+  .hamburger-btn{display:flex}
+  .logo .logo-sub{display:none}
+  .main{padding:14px}
 }
 
 @media(max-width:480px){
   .topbar{padding:0 10px;gap:4px}
   .logo{font-size:13px}
-  .logo .logo-sub{display:none}
-  .nav-links{gap:2px}
-  .nav-links .nav-btn{padding:6px 8px;font-size:11px}
   .nav-user{width:28px;height:28px;font-size:11px}
-  .main{padding:14px}
 }
 </style>
 </head>
@@ -239,8 +271,27 @@ const SUPABASE_ANON = 'sb_publishable_8Legg4UoO-pj-ZNAPJ7ENg_T1Je4rX4'
     <div class="nav-right">
       <span class="user-pill" id="user-email-display"></span>
       <button class="nav-user" id="nav-initials" onclick="handleSignOut()" title="Sign out">M</button>
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileNav()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </nav>
+
+  <!-- Mobile slide-down nav panel -->
+  <div class="mobile-nav-backdrop" id="mobile-nav-backdrop" onclick="closeMobileNav()"></div>
+  <div class="mobile-nav-panel" id="mobile-nav-panel">
+    <button class="mobile-nav-btn active" data-page="dashboard" onclick="mobileNavGo('dashboard')">▦ Dashboard</button>
+    <button class="mobile-nav-btn" data-page="leads" onclick="mobileNavGo('leads')">👥 Leads</button>
+    <button class="mobile-nav-btn" data-page="pipeline" onclick="mobileNavGo('pipeline')">📊 Pipeline</button>
+    <button class="mobile-nav-btn" data-page="estimator" onclick="mobileNavGo('estimator')">🧮 Estimator</button>
+    <button class="mobile-nav-btn" data-page="schedule" onclick="mobileNavGo('schedule')">📅 Schedule</button>
+    <button class="mobile-nav-btn" data-page="quotes" onclick="mobileNavGo('quotes')">📄 Quotes</button>
+    <div class="mobile-nav-divider"></div>
+    <div class="mobile-nav-user">
+      <span id="mobile-user-email">—</span>
+      <button class="btn btn-sm" onclick="handleSignOut()">Sign Out</button>
+    </div>
+  </div>
 
   <div class="main">
 
@@ -686,6 +737,7 @@ async function bootApp(user) {
   const initials = user.email[0].toUpperCase()
   document.getElementById('nav-initials').textContent = initials
   document.getElementById('user-email-display').textContent = user.email
+  document.getElementById('mobile-user-email').textContent = user.email
   const h = new Date().getHours()
   const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
   document.getElementById('dash-greeting').textContent = greet + ' 👋'
@@ -702,15 +754,38 @@ db.auth.getSession().then(({ data: { session } }) => {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'))
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'))
   document.getElementById('page-'+id).classList.add('active')
   const pages = ['dashboard','leads','pipeline','estimator','schedule','quotes']
   const idx = pages.indexOf(id)
   if(idx >= 0) document.querySelectorAll('.nav-btn')[idx].classList.add('active')
+  const mobileBtn = document.querySelector(`.mobile-nav-btn[data-page="${id}"]`)
+  if(mobileBtn) mobileBtn.classList.add('active')
   if(id==='leads') loadLeads()
   if(id==='pipeline') loadPipeline()
   if(id==='schedule') loadCalendar()
   if(id==='quotes') loadQuotes()
   if(id==='dashboard') loadDashboard()
+}
+
+// ── MOBILE HAMBURGER NAV ──
+function toggleMobileNav() {
+  const panel = document.getElementById('mobile-nav-panel')
+  const backdrop = document.getElementById('mobile-nav-backdrop')
+  const btn = document.getElementById('hamburger-btn')
+  const isOpen = panel.classList.contains('open')
+  panel.classList.toggle('open', !isOpen)
+  backdrop.classList.toggle('open', !isOpen)
+  btn.classList.toggle('open', !isOpen)
+}
+function closeMobileNav() {
+  document.getElementById('mobile-nav-panel').classList.remove('open')
+  document.getElementById('mobile-nav-backdrop').classList.remove('open')
+  document.getElementById('hamburger-btn').classList.remove('open')
+}
+function mobileNavGo(id) {
+  showPage(id)
+  closeMobileNav()
 }
 
 // ── MODALS ──
