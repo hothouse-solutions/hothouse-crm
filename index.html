@@ -107,6 +107,13 @@ td{padding:10px 12px;vertical-align:middle}.td-primary{font-weight:500}
 .est-select{font-family:inherit;font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;width:100%;background:var(--card);color:var(--text);outline:none;-webkit-appearance:none;appearance:none}
 .est-select:disabled{background:#F5F4F0;color:var(--text-3)}
 .est-rate{font-size:12px;color:var(--text-2);text-align:right;line-height:1.4}
+.est-rate-edit{display:flex;align-items:center;gap:2px;font-size:12px;color:var(--text-2);justify-content:flex-end;position:relative}
+.est-rate-edit.custom{color:var(--brand-dark)}
+.est-rate-input{width:64px;font-family:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--border);border-radius:5px;text-align:right;background:var(--card);color:var(--text);outline:none}
+.est-rate-edit.custom .est-rate-input{border-color:var(--brand);background:var(--brand-light);font-weight:600}
+.est-rate-input:focus{border-color:var(--brand);box-shadow:0 0 0 2px rgba(229,90,43,.12)}
+.rate-reset{background:none;border:none;color:var(--brand);cursor:pointer;font-size:13px;padding:2px;line-height:1}
+.rate-reset:hover{color:var(--brand-dark)}
 .est-line-total{font-weight:600;font-size:13px;text-align:right}
 .quote-summary{background:var(--brand-light);border:1px solid rgba(229,90,43,.2);border-radius:var(--r);padding:16px 20px;margin-top:16px}
 .summary-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
@@ -362,15 +369,27 @@ const SUPABASE_ANON = 'sb_publishable_8Legg4UoO-pj-ZNAPJ7ENg_T1Je4rX4'
       </div>
 
       <div class="card">
-        <div class="est-section-title">Services & Pricing</div>
+        <div class="est-section-title" style="display:flex;justify-content:space-between;align-items:center;border-bottom:none;padding-bottom:0;margin-bottom:4px">
+          <span>Services & Pricing</span>
+          <button class="btn btn-sm no-print" onclick="resetAllRates()" style="font-size:11px;padding:3px 8px" title="Reset all custom prices back to defaults">↺ Reset All Prices</button>
+        </div>
         <div class="est-header-row">
-          <span></span><span>Service</span><span>Material</span><span>Qty / Sq Ft</span><span>Rate</span><span style="text-align:right">Line Total</span>
+          <span></span><span>Service</span><span>Material</span><span>Qty / Sq Ft</span><span>Rate (editable)</span><span style="text-align:right">Line Total</span>
         </div>
         <div id="service-lines"></div>
 
         <div style="display:flex;gap:12px;margin-top:16px">
           <div class="form-group" style="flex:1"><label>Rebate / Incentive ($)</label><input type="number" id="est-rebate" value="0" min="0" oninput="calcAll()"></div>
-          <div class="form-group" style="flex:1"><label>Discount ($)</label><input type="number" id="est-discount" value="0" min="0" oninput="calcAll()"></div>
+          <div class="form-group" style="flex:1.4">
+            <label>Discount</label>
+            <div style="display:flex;gap:6px">
+              <input type="number" id="est-discount" value="0" min="0" step="0.01" oninput="calcAll()" style="flex:1">
+              <select id="est-discount-mode" onchange="calcAll()" style="width:90px;flex-shrink:0">
+                <option value="dollar">$ Dollars</option>
+                <option value="percent">% Percent</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div class="quote-summary">
@@ -379,8 +398,8 @@ const SUPABASE_ANON = 'sb_publishable_8Legg4UoO-pj-ZNAPJ7ENg_T1Je4rX4'
           <div class="summary-row" id="sum-discount-row" style="display:none"><span>Discount</span><span id="sum-discount" style="color:var(--brand)">-$0.00</span></div>
           <div class="summary-row total"><span>Total</span><span id="sum-total">$0.00</span></div>
           <div class="deposit-row">
-            <div class="deposit-item"><label>Deposit (10%)</label><div class="amount" id="sum-deposit">$0.00</div></div>
-            <div class="deposit-item"><label>Balance Due on Completion (90%)</label><div class="amount" id="sum-balance">$0.00</div></div>
+            <div class="deposit-item"><label>Deposit (50%)</label><div class="amount" id="sum-deposit">$0.00</div></div>
+            <div class="deposit-item"><label>Balance Due on Completion (50%)</label><div class="amount" id="sum-balance">$0.00</div></div>
           </div>
         </div>
 
@@ -591,6 +610,30 @@ let editingQuoteId = null  // null = creating new quote; set = editing existing 
 let allEvents = []
 let calYear = new Date().getFullYear(), calMonth = new Date().getMonth()
 let svcState = {}
+
+// Custom pricing overrides persist across sessions (this is your price book, not a one-off)
+function loadCustomRates() {
+  try {
+    const saved = localStorage.getItem('hhs_custom_rates')
+    return saved ? JSON.parse(saved) : {}
+  } catch { return {} }
+}
+function saveCustomRates(rates) {
+  try { localStorage.setItem('hhs_custom_rates', JSON.stringify(rates)) } catch {}
+}
+let customRates = loadCustomRates() // { service_id: newRate } — persistent price book
+
+// Session-only overrides used when editing a saved quote, so we show the
+// rate that was actually quoted historically without permanently changing
+// your price book. Cleared whenever the estimator resets.
+let sessionRateOverride = {}
+
+function getRate(serviceId) {
+  if(sessionRateOverride[serviceId] !== undefined) return sessionRateOverride[serviceId]
+  const base = SERVICES.find(s=>s.id===serviceId)?.rate || 0
+  return customRates[serviceId] !== undefined ? customRates[serviceId] : base
+}
+
 const initSvcState = () => {
   svcState = {}
   SERVICES.forEach(s => svcState[s.id] = {checked:false, qty:0, material:s.material[0]})
@@ -880,23 +923,74 @@ function renderServiceLines() {
   const sqft = parseInt(document.getElementById('est-sqft')?.value)||999
   document.getElementById('service-lines').innerHTML = SERVICES.map(s => {
     const st = svcState[s.id]
+    const rate = getRate(s.id)
+    const isOverridden = sessionRateOverride[s.id] !== undefined || customRates[s.id] !== undefined
+    const overrideNote = editingQuoteId
+      ? 'Editing price for this quote only'
+      : (customRates[s.id]!==undefined ? 'Custom price (edited from base $'+s.rate.toFixed(2)+')' : 'Click to edit price')
     const matHtml = s.material.length===1&&s.material[0]==='Standard'
       ? '<span style="font-size:11px;color:var(--text-3)">—</span>'
       : `<select class="est-select" id="mat-${s.id}" ${st.checked?'':'disabled'} onchange="svcState['${s.id}'].material=this.value">
            ${s.material.map(m=>`<option${m===st.material?' selected':''}>${m}</option>`).join('')}
          </select>`
     const defQty = (s.unit==='ea'||s.unit==='door')?1:sqft
-    const lineTotal = st.checked&&st.qty>0 ? fmt(st.qty*s.rate) : '—'
+    const lineTotal = st.checked&&st.qty>0 ? fmt(st.qty*rate) : '—'
     return `
     <div class="est-row${st.checked?' active-row':''}" id="row-${s.id}">
       <input type="checkbox" class="est-check" id="chk-${s.id}" ${st.checked?'checked':''} onchange="toggleSvc('${s.id}')">
       <label class="est-service-label" for="chk-${s.id}">${s.name}<br><span class="est-service-sub">per ${s.unit}</span></label>
       <div>${matHtml}</div>
       <input type="number" class="est-input" id="qty-${s.id}" value="${st.qty||''}" placeholder="${defQty}" min="0" ${st.checked?'':'disabled'} oninput="svcState['${s.id}'].qty=parseFloat(this.value)||0;calcAll()">
-      <div class="est-rate">$${s.rate.toFixed(2)}<br><span style="font-size:10px;color:var(--text-3)">/${s.unit}</span></div>
+      <div class="est-rate-edit${isOverridden?' custom':''}">
+        $<input type="number" class="est-rate-input" id="rate-${s.id}" value="${rate}" step="0.01" min="0" title="${overrideNote}" onchange="updateRate('${s.id}',this.value)">
+        <span style="font-size:10px;color:var(--text-3)">/${s.unit}</span>
+        ${(!editingQuoteId && customRates[s.id]!==undefined)?`<button class="rate-reset" onclick="resetRate('${s.id}')" title="Reset to base price $${s.rate.toFixed(2)}">↺</button>`:''}
+      </div>
       <div class="est-line-total" id="lt-${s.id}">${lineTotal}</div>
     </div>`
   }).join('')
+}
+
+function updateRate(serviceId, newRate) {
+  const val = parseFloat(newRate)
+  const base = SERVICES.find(s=>s.id===serviceId)?.rate
+  if(isNaN(val) || val < 0) { renderServiceLines(); return }
+
+  if(editingQuoteId) {
+    // Only affects this one quote being edited — does not touch your global price book
+    sessionRateOverride[serviceId] = val
+    renderServiceLines()
+    calcAll()
+    toast(`Price for this quote updated to $${val.toFixed(2)}/${SERVICES.find(s=>s.id===serviceId).unit}`)
+    return
+  }
+
+  if(val === base) {
+    delete customRates[serviceId]
+  } else {
+    customRates[serviceId] = val
+  }
+  saveCustomRates(customRates)
+  renderServiceLines()
+  calcAll()
+  toast(val === base ? 'Price reset to default.' : `Price updated to $${val.toFixed(2)}/${SERVICES.find(s=>s.id===serviceId).unit}`)
+}
+
+function resetRate(serviceId) {
+  delete customRates[serviceId]
+  saveCustomRates(customRates)
+  renderServiceLines()
+  calcAll()
+  toast('Price reset to default.')
+}
+
+function resetAllRates() {
+  if(!confirm('Reset ALL services to their original default pricing? This cannot be undone.')) return
+  customRates = {}
+  saveCustomRates(customRates)
+  renderServiceLines()
+  calcAll()
+  toast('All prices reset to defaults.')
 }
 
 function toggleSvc(id) {
@@ -925,29 +1019,35 @@ function calcAll() {
   let subtotal = 0
   SERVICES.forEach(s => {
     const st = svcState[s.id]
-    const line = st.checked ? (st.qty||0)*s.rate : 0
+    const rate = getRate(s.id)
+    const line = st.checked ? (st.qty||0)*rate : 0
     const el = document.getElementById('lt-'+s.id)
     if(el) el.textContent = st.checked&&st.qty>0 ? fmt(line) : '—'
     if(st.checked) subtotal += line
   })
   const rebate = parseFloat(document.getElementById('est-rebate').value)||0
-  const disc = parseFloat(document.getElementById('est-discount').value)||0
-  const total = Math.max(0, subtotal-rebate-disc)
+  const discMode = document.getElementById('est-discount-mode').value // 'dollar' or 'percent'
+  const discInput = parseFloat(document.getElementById('est-discount').value)||0
+  const discAmount = discMode === 'percent' ? subtotal * (discInput/100) : discInput
+
+  const total = Math.max(0, subtotal-rebate-discAmount)
   document.getElementById('sum-subtotal').textContent = fmt(subtotal)
   document.getElementById('sum-total').textContent = fmt(total)
-  document.getElementById('sum-deposit').textContent = fmt(total*.1)
-  document.getElementById('sum-balance').textContent = fmt(total*.9)
+  document.getElementById('sum-deposit').textContent = fmt(total*.5)
+  document.getElementById('sum-balance').textContent = fmt(total*.5)
   document.getElementById('sum-rebate-row').style.display = rebate>0?'flex':'none'
-  document.getElementById('sum-discount-row').style.display = disc>0?'flex':'none'
+  document.getElementById('sum-discount-row').style.display = discAmount>0?'flex':'none'
   document.getElementById('sum-rebate').textContent = '-'+fmt(rebate)
-  document.getElementById('sum-discount').textContent = '-'+fmt(disc)
+  document.getElementById('sum-discount').textContent = '-'+fmt(discAmount) + (discMode==='percent' ? ` (${discInput}%)` : '')
 }
 
 function clearEstimate() {
   initSvcState()
+  sessionRateOverride = {}
   ;['est-name','est-phone','est-address','est-year','est-notes','est-hvac'].forEach(id => {const el=document.getElementById(id);if(el)el.value=''})
   document.getElementById('est-rebate').value=0
   document.getElementById('est-discount').value=0
+  document.getElementById('est-discount-mode').value='dollar'
   document.getElementById('est-sqft').value=999
   document.getElementById('est-stories').selectedIndex=0
   document.getElementById('est-foundation').selectedIndex=0
@@ -976,14 +1076,21 @@ function editQuote(quote) {
   if(quote.stories) document.getElementById('est-stories').value = quote.stories
   document.getElementById('est-rebate').value = quote.rebate || 0
   document.getElementById('est-discount').value = quote.discount || 0
+  document.getElementById('est-discount-mode').value = quote.discount_mode || 'dollar'
 
-  // Re-populate service checkboxes/qty/material from saved line items
+  // Re-populate service checkboxes/qty/material from saved line items.
+  // Important: restore the EXACT rate that was quoted at the time, even if
+  // your price book has changed since — this keeps editing a quote honest
+  // to what the customer actually saw, rather than silently repricing it.
   ;(quote.services || []).forEach(line => {
     if(svcState[line.service_id]) {
       svcState[line.service_id] = {
         checked: true,
         qty: line.qty || 0,
         material: line.material || svcState[line.service_id].material
+      }
+      if(line.rate !== undefined) {
+        sessionRateOverride[line.service_id] = line.rate
       }
     }
   })
@@ -1017,10 +1124,12 @@ async function saveQuote() {
   const btn = document.getElementById('est-save-btn')
   btn.disabled=true; btn.textContent = editingQuoteId ? 'Updating…' : 'Saving…'
 
-  const subtotal = selected.reduce((s,sv)=>s+(svcState[sv.id].qty||0)*sv.rate,0)
+  const subtotal = selected.reduce((s,sv)=>s+(svcState[sv.id].qty||0)*getRate(sv.id),0)
   const rebate = parseFloat(document.getElementById('est-rebate').value)||0
-  const disc = parseFloat(document.getElementById('est-discount').value)||0
-  const total = Math.max(0,subtotal-rebate-disc)
+  const discMode = document.getElementById('est-discount-mode').value
+  const discInput = parseFloat(document.getElementById('est-discount').value)||0
+  const discAmount = discMode === 'percent' ? subtotal * (discInput/100) : discInput
+  const total = Math.max(0,subtotal-rebate-discAmount)
 
   const payload = {
     customer_name: document.getElementById('est-name').value||'Unknown',
@@ -1029,12 +1138,13 @@ async function saveQuote() {
     year_built: document.getElementById('est-year').value,
     attic_sqft: parseInt(document.getElementById('est-sqft').value)||0,
     stories: document.getElementById('est-stories').value,
-    services: selected.map(s=>({
-      service_id:s.id, name:s.name, material:svcState[s.id].material,
-      qty:svcState[s.id].qty, rate:s.rate, total:(svcState[s.id].qty||0)*s.rate, unit:s.unit
-    })),
-    subtotal, rebate, discount:disc, total,
-    deposit:total*.1, balance:total*.9,
+    services: selected.map(s=>{
+      const rate = getRate(s.id)
+      return { service_id:s.id, name:s.name, material:svcState[s.id].material,
+        qty:svcState[s.id].qty, rate, total:(svcState[s.id].qty||0)*rate, unit:s.unit }
+    }),
+    subtotal, rebate, discount:discInput, discount_mode:discMode, total,
+    deposit:total*.5, balance:total*.5,
     notes: document.getElementById('est-notes').value,
   }
 
@@ -1212,11 +1322,11 @@ function viewSignedQuote(q) {
     <div class="quote-summary" style="margin-top:0">
       <div class="summary-row"><span>Subtotal</span><span>${fmt(q.subtotal)}</span></div>
       ${q.rebate>0?`<div class="summary-row"><span>Rebate</span><span style="color:var(--success)">-${fmt(q.rebate)}</span></div>`:''}
-      ${q.discount>0?`<div class="summary-row"><span>Discount</span><span style="color:var(--brand)">-${fmt(q.discount)}</span></div>`:''}
+      ${q.discount>0?`<div class="summary-row"><span>Discount${q.discount_mode==='percent'?` (${q.discount}%)`:''}</span><span style="color:var(--brand)">-${fmt(q.discount_mode==='percent' ? q.subtotal*(q.discount/100) : q.discount)}</span></div>`:''}
       <div class="summary-row total"><span>Total</span><span>${fmt(q.total)}</span></div>
       <div class="deposit-row">
-        <div class="deposit-item"><label>Deposit (10%)</label><div class="amount">${fmt(q.deposit)}</div></div>
-        <div class="deposit-item"><label>Balance (90%)</label><div class="amount">${fmt(q.balance)}</div></div>
+        <div class="deposit-item"><label>Deposit (50%)</label><div class="amount">${fmt(q.deposit)}</div></div>
+        <div class="deposit-item"><label>Balance (50%)</label><div class="amount">${fmt(q.balance)}</div></div>
       </div>
     </div>
 
