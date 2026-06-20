@@ -31,15 +31,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-
 
 /* ── APP SHELL ── */
 #app-screen{display:none;flex-direction:column;min-height:100vh}
-.topbar{background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;position:sticky;top:0;z-index:100}
-.logo{display:flex;align-items:center;gap:8px;color:#fff;font-size:15px;font-weight:600;letter-spacing:-.3px}
+.topbar{background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;position:sticky;top:0;z-index:100;gap:8px}
+.logo{display:flex;align-items:center;gap:6px;color:#fff;font-size:15px;font-weight:600;letter-spacing:-.3px;flex-shrink:0;white-space:nowrap}
 .logo span{color:var(--brand)}
-.nav-links{display:flex;gap:4px}
-.nav-btn{background:none;border:none;color:rgba(255,255,255,.65);font-size:13px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;transition:.15s}
+.nav-links{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;min-width:0;mask-image:linear-gradient(to right, black calc(100% - 24px), transparent 100%);-webkit-mask-image:linear-gradient(to right, black calc(100% - 24px), transparent 100%)}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-btn{background:none;border:none;color:rgba(255,255,255,.65);font-size:13px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;transition:.15s;flex-shrink:0;white-space:nowrap}
 .nav-btn:hover,.nav-btn.active{background:rgba(255,255,255,.1);color:#fff}
-.nav-right{display:flex;align-items:center;gap:10px}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .user-pill{color:rgba(255,255,255,.55);font-size:12px}
-.nav-user{width:32px;height:32px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;cursor:pointer;border:none}
+.nav-user{width:32px;height:32px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;cursor:pointer;border:none;flex-shrink:0}
 .main{flex:1;padding:24px;max-width:1280px;margin:0 auto;width:100%}
 .page{display:none}.page.active{display:block}
 
@@ -176,6 +177,16 @@ td{padding:10px 12px;vertical-align:middle}.td-primary{font-weight:500}
   .est-row>*:nth-child(5),.est-row>*:nth-child(6){display:none}
   .nav-links .nav-btn{padding:6px 7px;font-size:12px}
 }
+
+@media(max-width:480px){
+  .topbar{padding:0 10px;gap:4px}
+  .logo{font-size:13px}
+  .logo .logo-sub{display:none}
+  .nav-links{gap:2px}
+  .nav-links .nav-btn{padding:6px 8px;font-size:11px}
+  .nav-user{width:28px;height:28px;font-size:11px}
+  .main{padding:14px}
+}
 </style>
 </head>
 <body>
@@ -216,7 +227,7 @@ const SUPABASE_ANON = 'sb_publishable_8Legg4UoO-pj-ZNAPJ7ENg_T1Je4rX4'
 <!-- ═══════════════ APP SCREEN ═══════════════ -->
 <div id="app-screen">
   <nav class="topbar">
-    <div class="logo"><span>HOT HOUSE</span> SOLUTIONS <span style="color:rgba(255,255,255,.3);font-weight:400;font-size:12px;margin-left:6px">CRM</span></div>
+    <div class="logo"><span>HOT HOUSE</span> SOLUTIONS <span class="logo-sub" style="color:rgba(255,255,255,.3);font-weight:400;font-size:12px;margin-left:6px">CRM</span></div>
     <div class="nav-links">
       <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-btn" onclick="showPage('leads')">Leads</button>
@@ -310,7 +321,7 @@ const SUPABASE_ANON = 'sb_publishable_8Legg4UoO-pj-ZNAPJ7ENg_T1Je4rX4'
         <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #E55A2B;margin-bottom:20px">
           <div>
             <div style="font-size:22px;font-weight:700"><span style="color:#E55A2B">HOT HOUSE</span> SOLUTIONS</div>
-            <div style="font-size:12px;color:#6B6860;margin-top:4px">Denver, CO · (720) 982-2070 · Info@hothousesolutions.com</div>
+            <div style="font-size:12px;color:#6B6860;margin-top:4px">Denver, CO · (720) 230-6779 · Info@hothousesolutions.com</div>
             <div style="font-size:11px;color:#A09E99">Licensed & Insured · hothousesolutions.com</div>
           </div>
           <div style="text-align:right">
@@ -1288,7 +1299,7 @@ function viewSignedQuote(q) {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #E55A2B;margin-bottom:20px">
       <div>
         <div style="font-size:20px;font-weight:700"><span style="color:#E55A2B">HOT HOUSE</span> SOLUTIONS</div>
-        <div style="font-size:12px;color:#6B6860;margin-top:4px">Denver, CO · (720) 982-2070 · Info@hothousesolutions.com</div>
+        <div style="font-size:12px;color:#6B6860;margin-top:4px">Denver, CO · (720) 230-6779 · Info@hothousesolutions.com</div>
       </div>
       <div style="text-align:right">
         <div style="font-size:16px;font-weight:600;color:var(--success)">✓ SIGNED ESTIMATE</div>
