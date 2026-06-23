@@ -466,11 +466,11 @@ const SUPABASE_ANON = 'sb_publishable_8Legg4UoO-pj-ZNAPJ7ENg_T1Je4rX4'
         </div>
 
         <!-- Terms (print only) -->
-        <div id="pdf-terms" style="display:none;margin-top:24px;font-size:11px;color:#6B6860;line-height:1.6;border-top:1px solid #E2E0DA;padding-top:16px">
-          <b>Terms & Conditions:</b> This estimate becomes a binding contract when signed by the property owner and an authorized representative of Hot House Solutions. Deposit is due upon signing. Balance is due upon completion. Cancellations within 48 hours of scheduled installation will forfeit deposit. A 1% processing fee applies to all balances paid by credit card.
+        <div id="pdf-terms" style="display:none;margin-top:24px;font-size:10.5px;color:#4A4843;line-height:1.55;border-top:1px solid #E2E0DA;padding-top:16px">
+          <div id="pdf-terms-content"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px">
-            <div><div style="border-top:1px solid #1A1F2E;padding-top:6px;margin-top:36px">Property Owner Signature & Date</div></div>
-            <div><div style="border-top:1px solid #1A1F2E;padding-top:6px;margin-top:36px">Authorized Representative & Date</div></div>
+            <div><div style="border-top:1px solid #1A1F2E;padding-top:6px;margin-top:36px">Property Owner Signature &amp; Date</div></div>
+            <div><div style="border-top:1px solid #1A1F2E;padding-top:6px;margin-top:36px">Authorized Representative &amp; Date</div></div>
           </div>
         </div>
       </div>
@@ -701,6 +701,28 @@ const initSvcState = () => {
   SERVICES.forEach(s => svcState[s.id] = {checked:false, qty:0, material:s.material[0]})
 }
 initSvcState()
+
+// Shared terms & warranty text — used in the estimator PDF print,
+// the signed-quote viewer, and re-stated in sign.html for the customer.
+// Keep changes here so all three places stay in sync; if you ever edit
+// the wording, also update the matching block near the top of sign.html.
+const TERMS_HTML = `
+  <div style="font-size:11px;font-weight:700;color:#1A1F2E;margin-bottom:6px">TERMS &amp; CONDITIONS</div>
+  <p style="margin-bottom:8px"><b>1. Agreement.</b> This estimate and invoice, once signed by the property owner (or authorized agent) and an authorized representative of Hot House Solutions, becomes a binding contract for the work described above.</p>
+  <p style="margin-bottom:8px"><b>2. Payment.</b> The amount listed as <b>"Deposit"</b> above is due and payable upon signing this agreement. The amount listed as <b>"Balance"</b> is due upon completion of the work. <b>"Total"</b> reflects the full amount due, comprised of the Deposit (50%) and Balance (50%), unless otherwise noted above.</p>
+  <p style="margin-bottom:8px"><b>3. Cancellation.</b> Cancellation requests made within 48 hours of the scheduled installation date/time will forfeit the deposit.</p>
+  <p style="margin-bottom:8px"><b>4. Card Payments.</b> A 1% processing fee will be added to any balance paid by credit card.</p>
+  <p style="margin-bottom:8px"><b>5. Invoicing.</b> This document will serve as the invoice for this job. Unless requested at signing, no other invoice will be furnished.</p>
+  <p style="margin-bottom:8px"><b>6. Entire Agreement.</b> No verbal statement or representation other than what is set forth above shall bind either party, and no modification to this agreement is valid unless made in writing and signed by both parties.</p>
+  <p style="margin-bottom:8px"><b>7. Site Access &amp; Conditions.</b> Customer agrees to provide reasonable access to the work area(s). Hot House Solutions is not responsible for pre-existing damage, code violations, pest infestations, or structural issues discovered after work has begun; any such conditions will be communicated promptly and may result in a revised estimate before work continues.</p>
+  <p style="margin-bottom:8px"><b>8. Attorney's Fees.</b> In the event it becomes necessary for Hot House Solutions to institute a lawsuit for the enforcement of any of the terms of this contract, the purchaser agrees to pay all company costs of suit, together with reasonable attorney's fees.</p>
+
+  <div style="font-size:11px;font-weight:700;color:#1A1F2E;margin-top:14px;margin-bottom:6px">WARRANTY</div>
+  <p style="margin-bottom:8px"><b>Workmanship.</b> Hot House Solutions warrants all labor performed under this agreement to be free from defects for a period of <b>2 years</b> from the date of completion. If any installation fails due to faulty workmanship within this period, Hot House Solutions will repair it at no charge to the customer.</p>
+  <p style="margin-bottom:8px"><b>Materials.</b> All materials installed (insulation, spray foam, mechanical equipment such as whole house fans, etc.) carry the original manufacturer's warranty. Hot House Solutions will provide manufacturer warranty documentation upon request and will reasonably assist the customer in filing a manufacturer warranty claim, but is not responsible for manufacturer defects beyond what the manufacturer's warranty covers.</p>
+  <p style="margin-bottom:8px"><b>Exclusions.</b> This warranty does not cover damage caused by acts of God, structural settling, pre-existing moisture or pest issues, unrelated home renovations or repairs, alterations made by parties other than Hot House Solutions, or normal wear and tear.</p>
+  <p style="margin-bottom:0"><b>Claims.</b> To make a warranty claim, contact Hot House Solutions at the phone number or email listed above. A representative will schedule an inspection within a reasonable timeframe to evaluate the claim.</p>
+`
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const statusBadge = {Hot:'badge-red',Warm:'badge-orange',Cold:'badge-gray','Quote Sent':'badge-blue',Won:'badge-green',Lost:'badge-gray'}
@@ -1195,6 +1217,7 @@ function exportPDF() {
   document.getElementById('pdf-year').textContent = document.getElementById('est-year').value||'—'
   document.getElementById('pdf-sqft').textContent = document.getElementById('est-sqft').value||'—'
   document.getElementById('pdf-stories').textContent = document.getElementById('est-stories').value||'—'
+  document.getElementById('pdf-terms-content').innerHTML = TERMS_HTML
   document.getElementById('pdf-header').style.display = 'block'
   document.getElementById('pdf-terms').style.display = 'block'
   window.print()
@@ -1423,6 +1446,10 @@ function viewSignedQuote(q) {
       </div>
       <div style="font-size:13px;margin-top:10px"><b>${q.signed_name||q.customer_name}</b></div>
       <div style="font-size:12px;color:var(--text-2)">Signed ${signedDate}${signedTime?' at '+signedTime:''}</div>
+    </div>
+
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);font-size:10.5px;color:#4A4843;line-height:1.55">
+      ${TERMS_HTML}
     </div>
   `
   document.getElementById('modal-viewsigned').classList.add('open')
